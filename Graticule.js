@@ -33,6 +33,7 @@ var Graticule = (function() {
         // default to decimal intervals
         this._sexagesimal = description.sexagesimal || false;
         this._numLines = description.numLines || 50;
+        this._drawLabels = description.drawLabels !== false;
 
         this._scene = scene;
         this._labels = new Cesium.LabelCollection();
@@ -147,19 +148,21 @@ var Graticule = (function() {
     });
 
      _.prototype.makeLabel = function(lng, lat, text, top, color) {
-        this._labels.add({
-            position : this._ellipsoid.cartographicToCartesian(new Cesium.Cartographic(lng, lat, 10.0)),
-            text : text,
-            font : 'normal',
-            fillColor : 'white',
-            outlineColor : 'white',
-            style : Cesium.LabelStyle.FILL,
-            pixelOffset : new Cesium.Cartesian2(5, top ? 5 : -5),
-            eyeOffset : Cesium.Cartesian3.ZERO,
-            horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
-            verticalOrigin : top ? Cesium.VerticalOrigin.BOTTOM : Cesium.VerticalOrigin.TOP,
-            scale : 1.0
-        });
+        if (this._drawLabels) {
+            this._labels.add({
+                position : this._ellipsoid.cartographicToCartesian(new Cesium.Cartographic(lng, lat, 10.0)),
+                text : text,
+                font : 'normal',
+                fillColor : this._color,
+                outlineColor : this._color,
+                style : Cesium.LabelStyle.FILL,
+                pixelOffset : new Cesium.Cartesian2(5, top ? 5 : -5),
+                eyeOffset : Cesium.Cartesian3.ZERO,
+                horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
+                verticalOrigin : top ? Cesium.VerticalOrigin.BOTTOM : Cesium.VerticalOrigin.TOP,
+                scale : 1.0
+            });
+        }
     };
 
     _.prototype._drawGrid = function(extent) {
@@ -199,6 +202,10 @@ var Graticule = (function() {
         var ellipsoid = this._ellipsoid;
         var lat, lng, granularity = Cesium.Math.toRadians(1);
 
+        //create Material for polylines
+        var material = Cesium.Material.fromType('Color');
+        material.uniforms.color = this._color;
+
         // labels positions
         var latitudeText = minLat + Math.floor((maxLat - minLat) / dLat / 2) * dLat;
         for(lng = minLng; lng < maxLng; lng += dLng) {
@@ -208,10 +215,11 @@ var Graticule = (function() {
                 path.push(new Cesium.Cartographic(lng, lat))
             }
             path.push(new Cesium.Cartographic(lng, maxLat));
-            this._polylines.add({
+            var p = this._polylines.add({
                 positions : ellipsoid.cartographicArrayToCartesianArray(path),
                 width: 1
             });
+            p.material = material;
             var degLng = Cesium.Math.toDegrees(lng);
             this.makeLabel(lng, latitudeText, this._sexagesimal ? this._decToSex(degLng) : degLng.toFixed(gridPrecision(dLng)), false);
         }
@@ -225,10 +233,11 @@ var Graticule = (function() {
                 path.push(new Cesium.Cartographic(lng, lat))
             }
             path.push(new Cesium.Cartographic(maxLng, lat));
-            this._polylines.add({
+            var p = this._polylines.add({
                 positions : ellipsoid.cartographicArrayToCartesianArray(path),
                 width: 1
             });
+            p.material = material;
             var degLat = Cesium.Math.toDegrees(lat);
             this.makeLabel(longitudeText, lat, this._sexagesimal ? this._decToSex(degLat) : degLat.toFixed(gridPrecision(dLat)), true);
         }
